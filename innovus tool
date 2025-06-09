@@ -1,0 +1,261 @@
+You can use the following get_db queries to explore floorplan-related information of your design:
+	Obtain top design name
+get_db designs .name
+OR
+get_db current_design .name
+ 
+	Obtain floorplan bounding box or the design boundary coordinates
+get_db designs .bbox
+OR
+get_db current_design .bbox
+Similarly, you can get the boundary coordinates using following command:
+get_db current_design .boundary
+To get the boundary coordinates in box form, use following command:
+get_computed_shapes [get_db current_design .boundary] -output rect
+ 
+	Obtain core bounding box coordinates 
+get_db current_design .core_bbox
+To get each coordinates separately, use following commands:
+get_db current_design .core_bbox.ll.x
+get_db current_design .core_bbox.ll.y
+get_db current_design .core_bbox.ur.x
+get_db current_design .core_bbox.ur.y
+OR
+You can create a procedure to get coordinates of a rectilinear core:
+proc get_core_boxes {} {
+   set fp_areas [get_db -dbu current_design .boundary]
+   set core_to_left [get_db -dbu current_design .core_to_left ]
+   set core_to_bottom [get_db -dbu current_design .core_to_bottom]
+   set core_to_top [get_db -dbu current_design .core_to_top ]
+   set core_to_right [get_db -dbu current_design .core_to_right ]
+   set core_area_1 [get_computed_shapes -dbu $fp_areas MOVE [list -$core_to_right -$core_to_top]]
+   set core_area_2 [get_computed_shapes -d $fp_areas MOVE [list -$core_to_right $core_to_bottom]]
+   set core_area_3 [get_computed_shapes -d $fp_areas MOVE [list $core_to_left -$core_to_top]]
+   set core_area_4 [get_computed_shapes -d $fp_areas MOVE [list $core_to_left $core_to_bottom]]
+   set core_area [get_computed_shapes -d $core_area_1 AND $core_area_2 AND $core_area_3 AND $core_area_4]
+   return $core_area
+}
+	Obtain top ports of design
+get_db current_design .ports.name
+To get the top ports name of specific pattern (For example: All ports starting with scan), use following command:
+get_db current_design .ports.name scan*
+ 
+	To check the status of all the ports
+get_db current_design .ports.place_status
+To check if any of the port are unplaced, use following command:
+get_db current_design .ports.place_status unplaced
+ 
+	To check the current status of the design
+get_db current_design .is_clock_synthesized 
+get_db current_design .is_core_to_io 
+get_db current_design .is_detail_routed 
+get_db current_design .is_global_routed 
+get_db current_design .is_ilm 
+get_db current_design .is_io_placed 
+get_db current_design .is_placed 
+get_db current_design .is_rc_extracted 
+get_db current_design .is_routed
+get_db current_design .is_scan_optimized
+ 
+	Select all RAMs, hard macros in a design
+select_obj  [get_db insts -if {.base_cell.base_class == block}]
+Note: The Innovus GUI may need to be refreshed to see the selection.
+ 
+	Get information about macro obstruction using get_db
+get_db [get_db insts -if {.base_cell.base_class == block}] .base_cell.obs_layer_shapes.layer.name
+get_db [get_db insts -if {.base_cell.base_class == block}] .base_cell.obs_layer_shapes.shapes.rect
+Note: The values retrieved are relative to the cell, not the design. You need to use get_transform_shapes to convert from cell coordinates to design coordinates.
+ 
+	Report the area of a specified hard macro
+get_db base_cell:<macro_cell_name> .area         
+OR
+get_db inst:<macro_inst_name> .base_cell.area
+ 
+	Reporting the area of each hard macros and total area consumed by all Macros in the design.
+Following procedure helps to report the area of each hard macros in the design and total area consumed by all Macros. First source the following procedure, and then run macroTotalArea command. 
+proc macroTotalArea {} { 
+   set allMacros [get_db [get_db insts -if {.base_cell.base_class == block}] .name] 
+   set area 0 
+   set total_a 0 
+  foreach macro $allMacros { 
+     set area [get_db inst:$macro .area] 
+     set total_a [expr $total_a + [get_db inst:$macro .area]] 
+     puts " Area of $macro \t = \t $area um2" 
+  } 
+  puts "TOTAL Macro Area \t = \t $total_a um2\n" 
+} 
+For Example : After sourcing the procedure, and running macroTotalArea command, output will be like : 
+@innovus > macroTotalArea 
+ Area of DTMF_INST/PLLCLK_INST = 84000.0 um2 
+ Area of DTMF_INST/RAM_128x16_TEST_INST/RAM_128x16_INST = 75295.1349 um2 
+ Area of DTMF_INST/ARB_INST/ROM_512x16_0_INST = 47055.125425 um2 
+ Area of DTMF_INST/RAM_256x16_TEST_INST/RAM_256x16_INST = 87299.0697 um2 
+TOTAL Macro Area = 293649.330025 um2
+ 
+	Get database units and manufacturing grid information
+get_db tech_db_units 
+get_db tech_mfg_grid
+ 
+	Get information of all tech sites in the design
+get_db sites .name
+get_db sites .size
+To get the width or height of a specific site in the design (For example: width and height or site with name "tsm3site" )
+get_db [get_db sites -if {.name == "tsm3site"}] .size.x
+get_db [get_db sites -if {.name == "tsm3site"}] .size.y
+ 
+	Get clock ports or the non-clock ports in the design
+Following command will give the clock ports in the design:
+get_db ports -if {.is_clock_used_as_clock == true}
+Or, if you need to get all the non-clock ports of the design, use following command:
+get_db ports -if {.is_clock_used_as_clock == false}
+ 
+	Query top level term pin coordinats and layer name
+get_db pin:pinName .layer.name
+get_db pin:pinName .location
+ 
+	Query or report the orientation of macros to check whether they are placed in the required orientations
+set macros [get_db insts -if {.base_cell.base_class == block}]
+foreach inst $macros {
+   puts "[get_db $inst .name] [get_db $inst .orient]"
+}
+ 
+•	Report latency of all memories in the design
+Following script prints the latency of all memories with cell name *RAM* and clock pin name *CLK. You can change *RAM* or *CLK with the cell name, and the clock name of the desired memories, or as per your design.
+set mem_pin [get_db [get_db insts .base_cell *RAM*] .base_pins *CLK]
+foreach i $mem_pin {
+puts "$i [get_property [get_pins $i] actual_latency_late_rise_max]"
+}
+ 
+•	Get the orientation of the first row in the design
+           get_db [get_db rows -if ".rect.ll.y <= [get_db current_design .core_bbox.ll.y]"] .orient
+ 
+	Collect fence, module, guides, and blackboxes
+set fence_list [concat [get_db current_design .groups -if {.constraint_type == fence}] \
+  [get_db current_design .boundaries -if {.type == fence}]]
+set region_list [concat [get_db current_design .groups -if {.constraint_type == region}] \
+  [get_db current_design .boundaries -if {.type == region}]]
+set guide_list [concat [get_db current_design .groups -if {.constraint_type == guide}] \
+  [get_db current_design .boundaries -if {.type == guide}]]
+set blackbox_list [get_db insts -if {.is_black_box == true}]
+ 
+	Obtain dimensions and instances contained in a guide
+foreach guide [get_db current_design .groups -if {.constraint_type == guide}] {
+  puts "GUIDE: [get_db $guide .name] [get_db $guide .rects]"
+  foreach member [get_db $guide .members] {
+    puts "  [get_db $member .name]"
+  }
+}
+ 
+	Report the information for IO ports such as direction, layer, and physical location
+foreach port [get_db ports] {
+  puts "Pin: [get_db $port .name] ([get_db $port .direction])"
+  foreach pin [get_db $port .physical_pins] {
+    foreach layer_shape [get_db $pin .layer_shapes] {
+      puts "  Layer: [get_db $layer_shape .layer.name] - Rects: [get_db $layer_shape .shapes.rect]"
+    }
+  }
+}
+ 
+	Get the polygon shapes of the rectilinear design boundary and core boundary
+The rectilinear design boundary can be constructed by combining the output of [get_db current_design .boundary] into a polygon using get_computed_shapes:
+set design_shape [get_computed_shapes -output polygon [get_db current_design .boundary]]
+ 
+	List all metal layers and location of routing blockage
+get_db [get_db route_blockages -if {.name == <route_blockage_name>}] .layer.name
+get_db [get_db route_blockages -if {.name == <route_blockage_name>}] .rects
+ 
+	Convert the placement blockages from hard to soft or partial, or vice versa
+ 
+•	Convert hard to soft 
+foreach hard_blk [get_db place_blockages -if {.type == hard}]{
+  set_db $hard_blk .type soft
+}
+•	Convert soft to hard
+foreach soft_blk [get_db place_blockages -if {.type == soft}] { 
+  set_db $soft_blk .type hard
+}
+•	Convert the hard placement blockage to partial
+set my_blockage [get_db route_blockages -if {.name == <blockage_name>}]
+set_db $my_blockage .type partial
+set_db $my_blockage .density 20
+ 
+	Report pin details of all Pin Groups
+proc report_pin_group_pins {file_name} {
+    set fp [open $file_name w]
+    set all_pin_grps [get_db pin_groups]
+    if {[llength $all_pin_grps] > 0} {
+        foreach pin_group $all_pin_grps {
+            puts $fp "Below are pins from Pin Group [get_db $pin_group .name]"
+            foreach pin [get_db $pin_group .base_pins.base_name] {
+                puts $fp "$pin"
+            }
+        }
+    } else {
+            puts "No Pin Groups Loaded"
+    }
+close $fp
+} 
+•	Get box coordinates in polygon shape for rectilinear/rectangular macro:
+select_obj <macro_name>
+Example: select_obj proc0/cmem0/ddata0/u0/id0
+get_computed_shapes -output polygon [ get_db selected .overlap_rects]
+Sample Output:
+{{55.445 28.945} {42.905 28.945} {42.905 37.905} {15.185 37.905} {15.185 7.665} {55.445 7.665}}
+ 
+•	To delete floorplan objects based on area
+To return a list of floorplan objects based on area users can use the get_obj_in_area command .
+For example the following command returns all instances and routing-blockages on metal6 and metal7 layers in the given search areas:
+get_obj_in_area -obj_type {inst wire} -areas {{0 0 100 100}  {150  100  200  200}}  -layers  {Metal6  Metal7}}
+Once a list of objects are returned within an area we can delete them using the delete_obj command.
+For example the following command returns all placement blockages in the given search area and deletes them using delete_obj:
+delete_obj [get_obj_in_area -areas  {0 0 100 100} -obj_type place_blockage]
+
+•	To report the instance group for an instance:
+get_db inst:$instName .group.name
+ 
+•	To report the instances inside an instance group:
+get_db group:$instGrpName .members.name
+
+set_db [get_db base_cells *06_F*M8*_*_*] .dont_use true
+
+get_db place_blockages 
+delete_obj [get_db place_blockages] 
+get_db route_blockages 
+delete_obj [get_db route_blockages] 
+delete_place_halo -all_blocks 
+delete_route_halos -design_halo 
+delete_route_halos -all_blocks 
+delete_filler -prefix WELLTAP 
+delete_filler -prefix ENDCAP 
+delete_filler -prefix boundarycell 
+get_db insts -if { .base_cell.name == *CAP*} 
+get_db [get_db insts -if { .base_cell.name == *CAP*}] .name 
+set end_inst [get_db [get_db insts -if { .base_cell.name == *CAP*}] .name ] 
+foreach inst $end_inst { 
+delete_inst -inst $inst 
+} 
+delete_filler -prefix $pd_config(spare,prefix) 
+delete_routes -net {VDD VSS} 
+get_db pg_nets .name 
+foreach n [get_db pg_nets .name] { 
+delete_routes -net $n 
+} 
+port_blockages -soft_blck_height 25 -partial_blck_height 25 -partial_density_percentage 35 -soft_density_percentage 40
+add_well_taps -cell xyz -prefix wtap_odd -cell_interval 100 -skip_row 1
+
+create_place_halo  [-help]  -halo_deltas<  left  bottom  right  top>  [-snap_to_site] [-orient <orientation>] [<-insts name> | -all_macros | -all_black_boxes | -all_commit_partitions | -all_blocks |
+       -all_io_pads | -cell <name>]
+
+create_place_halo -halo_deltas 1 1 1 1 -all_macros
+delete_place_halo -all_macros
+
+eval_legacy {dbGet selected.cell.name}  -- get_selection
+eval_legacy {llength [dbGet [dbGet top.insts.cell.baseClass block -p2].name]} -- macro count
+report_density_in_area -area {{1700 423} {1758 31}} --> to find the area in particular area
+set_db timing_enable_simultaneous_setup_hold_mode true  --> to load both hold &setup timing in innovus
+
+check_power_vias -error 10000000 -report ../reports/floorplan/sms_ifc_macro.check_pg_missing_vias.rpt --> to write the power vias.
+
+update_power_vias -skip_via_on_pin standardcell -bottom_layer M2 -nets {VDD VSS} -add_vias 1 -top_layer M3  --> to added missing vias in particular layers
+
+get_db insts -if{.place_status = unplaced}
