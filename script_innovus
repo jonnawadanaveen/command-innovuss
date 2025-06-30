@@ -1,0 +1,28 @@
+1. How can I report the fanout of clock gating cells for a clock tree built by CCOpt?
+2. How can I report the fanout of each instance followed by it's number of fanout?
+Legacy :
+
+set out [open fanout.rpt w]
+set v1 [get_ccopt_clock_tree_cells * -node_types clock_gate]
+foreach clkgate $v1 {
+  set instPtr [dbGet top.insts.name $clkgate -p]
+  set instTermOutPtr [dbGet $instPtr.instTerms.isOutput 1 -p]
+  set instTermOutName [dbGet $instTermOutPtr.name]
+  set fanout [dbGet $instTermOutPtr.net.numInputTerms]
+  puts $out "$instTermOutName : $fanout"
+}
+close $out
+
+Common UI:
+
+set out [open fanout.rpt w] 
+set tot_icg [get_db [get_db insts -if {.is_integrated_clock_gating}] .name]
+foreach icg $tot_icg { 
+ set icg_pins [get_db inst:$icg .pins.name] 
+ foreach pin $icg_pins { 
+        if {[get_db pin:$pin .direction] == "out"} { 
+        puts $out "$pin : [llength [get_db pin:$pin .net.loads]]" 
+         } 
+     } 
+ } 
+close $out
