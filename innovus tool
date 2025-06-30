@@ -268,3 +268,88 @@ CUI : create_skew_group -name <skew_group_name> -constrains ccopt -source <sourc
 
 Legacy : set_ccopt_property target_insertion_delay -skew_group <skew_group> <target>
 CUI : set_db skew_group:<skew_group> .cts_skew_group_target_insertion_delay <target>
+
+##################3 get_db commands ###########
+List all placed, unplaced and fixed instances in the design.
+   get_db [get_db insts -if {.place_status == placed}] .name
+   get_db [get_db insts -if {.place_status == unplaced}] .name
+   get_db [get_db insts -if {.place_status == fixed}] .name
+
+Get the placement status of an instance.
+        get_db [get_db insts <inst_name>] .place_status
+               get_db inst:<inst_name> .place_status
+
+Find all instances of a certain cell type.
+        get_db [get_db insts -if {.base_cell.name == <cell_name>}] .name
+
+Change the cell symmetry of an instance.
+        set_db [get_db insts <inst_name>]  .base_cell.symmetry xy
+
+Get a list of dont_touch instances in the design.
+        get_db insts -if {.is_dont_touch}
+        get_db [get_db insts -if {.is_dont_touch}] .name
+
+Set all instances with a specific pattern in the name to FIXED status.
+        set_db [get_db insts *DMA_INST*] .place_status fixed
+
+Set the 'resize only' status on an instance.
+        set_db inst:<inst_name> .dont_touch size_ok
+
+To avoid splitting or merging of a specified multibit flop, during multibit Optimization
+   set_db inst:instName .dont_split_multibit true
+   set_db inst:instName .dont_merge_multibit true
+
+Query instances matching multiple patterns
+        get_db insts *DMA_INST* *ARB_INST*
+
+Query max_cap for a list of instances
+   set inst_list [get_db insts *NAME*]
+   foreach inst_ptr $inst_list { puts “ $inst_ptr [get_db $inst_ptr .pins.max_capacitance]”}
+
+Get the list of Instances that belongs to a clock tree.
+        get_db clock_trees .insts
+
+Check if an instance is a part of a clock tree
+        get_db inst:<instance_name> .cts_node_type​
+
+      From Innovus 18.10 onwards, you can use this command to get the node type of the given instance, and indicates that the instance is a part of a clock tree. The null value ("") implies the instance does not belongs to any clock tree. 
+
+Get the list of Integrated Clock Gating (ICG) instances in the design.
+        get_db [get_db insts -if {.is_integrated_clock_gating}] .name
+
+Query buffers added during CCOpt clustering (buffers added during clustering will have ccd, ccl, cci, and ccf in their name).
+        get_db insts -regexp {^.*CTS.*[c][c][ldif].*}
+
+Print names of all the module in the design       
+   foreach module_name [get_db modules] { puts "$module_name"}
+
+This will not include the top module name. To get the top module name, run the following command:
+
+   get_db current_design .name
+   OR
+   get_db designs
+
+Get the module name of a hierarchical instance
+
+   get_db [get_db hinsts asic_entity/coreinst/ks_core1/amba_dsp1/mcore0/ioport0/r_reg_pin1_9] .module.name
+
+Get the verilog module ports
+
+   get_db hinst:<moduleInstName> .hports.base_name
+
+List the metal layers on which the I/O pins of a design resides
+
+   get_db pins .layer.name -u
+
+List the pins for a specific metal layer
+
+   get_db pins -if {.layer.name == <layerName>}
+
+Filter all PG pins with direction bidi of a specific instance
+
+   get_db inst:instName .pg_pins -if {.pg_base_pin.direction == inout}
+
+List the instTerms that are ties to a tieHi or tieLo cells
+
+   get_db ports -if {.is_tie_high == true}
+   get_db ports -if {.is_tie_low == true}
