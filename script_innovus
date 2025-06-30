@@ -1,5 +1,5 @@
 1. How can I report the fanout of clock gating cells for a clock tree built by CCOpt?
-2. How can I report the fanout of each instance followed by it's number of fanout?
+   How can I report the fanout of each instance followed by it's number of fanout?
 Legacy :
 
 set out [open fanout.rpt w]
@@ -26,3 +26,36 @@ foreach icg $tot_icg {
      } 
  } 
 close $out
+
+2. User can use above logic with few modification to report fanout of each instance, as follows:
+
+Legacy :
+
+set out [open fanout1.rpt w]
+set all_MB_insts [dbGet [dbGet -p2 top.insts.cell.name *BUF*].name]
+foreach MB_Inst $all_MB_insts {
+  set instPtr [dbGet top.insts.name $MB_Inst -p]
+  set instTermOutPtr [dbGet $instPtr.instTerms.isOutput 1 -p]
+  set instTermOutName [dbGet $instTermOutPtr.name]
+  set fanout [dbGet $instTermOutPtr.net.numInputTerms]
+foreach MB_fanout_inst $instTermOutName {
+        set instTermOutPtr_MB_fanout_inst [dbGet top.insts.instTerms.name $MB_fanout_inst -p]
+        set fanout_MBinst [dbGet $instTermOutPtr_MB_fanout_inst.net.numInputTerms]
+        puts $out "$MB_fanout_inst : $fanout_MBinst"
+     }
+}
+close $out
+
+Common UI:
+
+set out [open fanout1.rpt w] 
+set cell_insts [get_db [get_db insts -if {.base_cell.name == *BUF*}] .name] 
+foreach inst $cell_insts { 
+ set inst_pins [get_db inst:$inst .pins.name] 
+ foreach pin $inst_pins { 
+            if {[get_db pin:$pin .direction] == "out"} { 
+            puts $out "$pin : [llength [get_db pin:$pin .net.loads]]" 
+          } 
+      } 
+ } 
+close $out 
