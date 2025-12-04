@@ -353,3 +353,61 @@ List the instTerms that are ties to a tieHi or tieLo cells
 
    get_db ports -if {.is_tie_high == true}
    get_db ports -if {.is_tie_low == true}
+
+• Report the latency of all memories in the design.
+	Following script prints the latency of all memories in the design.
+	get_db [get_db insts .pins -if { .inst.base_cell.base_class == block && .is_clock == true } ] -foreach { puts "$obj(.name) $obj(.actual_latency_late_rise_max)" }
+
+• Find non-clock ports in a design.
+     get_db [get_db ports -if { .net.is_clock == false && .direction == in } ] .name ]
+
+• Report points of the polygon that forms the die area.
+     get_computed_shapes [get_db designs .bbox ] -output polygon
+
+• Get the instname / cellname of the driver driving a specific net.
+	set netName <net_name>
+	set inst [get_db net:$netName .drivers.inst]
+	puts "Net: $netName, driving inst name: [get_db $inst .name ], driving cell name: [get_db $inst .base_cell.name ]"
+
+• Get all sequential cells of a particular module.​
+     select_obj hinst:<module_name>
+     get_db [get_db selected .insts -if { .base_cell.is_sequential == 1 } ] .name
+• Filter all PG pins with the bidi direction of a specific instance.
+     get_db inst:<inst_name> .pg_pins.pg_base_pin.direction
+
+• Report spare instances.
+     get_db [get_db insts -if { .is_spare == true } ] .name
+• Report Dont Use cells in the library.
+     get_db [get_db base_cells -if { .dont_use ==  true } ] .name
+• Get physical-only cells such as filler cell, end cap cell, and so on.
+     get_db [get_db insts -if { .is_physical == 1 } ] .name
+• Get the manufacturing grid.
+get_db tech_mfg_grid
+• Get top and bottom routing layers for a route_type.
+     get_db route_type: <route_type_name> .top_preferred_layer.name
+     get_db route_type:<route_type_name> .bottom_preferred_layer.name
+
+• List layers used in a net.
+     get_db net:<netName> .wires.layer.name
+
+• Get the placement status of an instance.
+     get_db inst:<flop_name> .place_status
+• Avoid splitting of a specified multibit flop during multibit optimization.
+     set_db inst:<flop_name> .dont_split_multibit 1
+	set_db opt_multi_bit_flop_opt splitOnly [ only split in place stage]
+	
+• Avoid merging of a specified multibit flop during multibit Optimization.
+     set_db inst:<flop_name> .dont_merge_multibit  1
+• Get the coordinates of a rectangular routing blockage.
+     get_db designs .route_blockages.rects
+     or
+     get_db route_blockages .rects  
+
+• List all unplaced instances in the design (similarly, placed/fixed insts can be reported).
+     get_db [get_db insts -if { .place_status == unplaced } ] .name
+• List metal layers on which I/O pins of the block reside.
+     get_db ports .layer.name
+• List non-default rules (NDR) in the design.
+     get_db route_rules .name
+• List NDRs applied on a specified net.
+     get_db net:netName .wires.route_rule.name -u
