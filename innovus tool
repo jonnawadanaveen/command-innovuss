@@ -461,3 +461,11 @@ delete_inst_padding $j
 set_inst_padding -inst $j -left_side 3 -right_side 3 -top_side 1 -bottom_side 1
 }
 
+set_db eco_honor_dont_use false
+set_db eco_honor_dont_touch false
+disconnect_pin -inst U_DFT_TOP_IP_0/CDIBUF_6_f_433012 -pin X
+edit_update_route_status -nets [get_db clock_trees .nets *] -to fixed 
+edit_trim_routes -type float -nets {VDD VSS}
+
+Scan logic in place reoder
+set_db reorder_scan_comp_logic true
