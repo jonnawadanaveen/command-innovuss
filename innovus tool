@@ -411,3 +411,53 @@ get_db tech_mfg_grid
      get_db route_rules .name
 • List NDRs applied on a specified net.
      get_db net:netName .wires.route_rule.name -u
+
+Select_pins collection and set skew groups
+
+set pins1 [get_object_name [get_pins -of_objects [get_cells -filter "is_memory_cell==true"] -filter "name=~CLK || name=~TCLK || name=~TCLKA || name=~TCLKB || name=~CLKA || name=~CLKB"]]
+
+foreach i $pins1 {
+set_db pin:$i .cts_pin_insertion_delay -0.100
+puts "$i : [get_db pin:$i .cts_pin_insertion_delay]"
+}
+
+reate_skew_group -name skg1 -constrains cts -source clk -exclusive_sinks $pins1 -target_insertion_delay 0.700
+
+Set color
+set_layer_preference cellPad -color {red yellow green blue}
+
+Add file interactive
+add_fillers -eco_mode true -base_cells [get_lib_cells {*FILL*_MVT* *FILL1 *FILL2 *FILL3 *FILL4}] -check_drc true -check_different_cells true
+
+Additional route
+eval_legacy {setNanoRouteMode -route_with_eco true -route_with_timing_driven false -route_with_Si_driven false } 
+route_eco; check_drc -limit 0 ; route_eco -fix_drc 
+
+eval_legacy {getNanoRouteMode -command}
+eval_legacy {setNanoRouteMode -route_with_eco true -route_with_timing_driven false -route_with_si_driven false -route_detail_end_iteration 10}
+route_eco -fix_drc 
+
+write_def -objects [get_nets -filter "net_type==power || net_type==ground"] -include {rows_tracks nets specialnets} pg1.def
+
+
+To get drive cell
+
+set b [get_db [get_db [get_db pin:$a .net ] .drivers] .cell_name]
+set c [get_db inst:$b .base_cell.name]
+
+
+Cell padding for cells in innovus
+
+Set cells {call list} 
+foreach i $b {
+	delete_cell_padding $i
+	set_inst_padding -inst $i -left_side 3 -right_side 3 -top_side 1 -bottom_side 1
+}
+set_db place_detail_honor_inst_pad true [place use]
+
+Applying the port contact first reg
+foreach j [get_db [all_fanin -to $all_ops -startpoints_only -only_cells] .name] {
+delete_inst_padding $j 
+set_inst_padding -inst $j -left_side 3 -right_side 3 -top_side 1 -bottom_side 1
+}
+
