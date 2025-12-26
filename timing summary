@@ -1,0 +1,139 @@
+########################### setting path_groups ###################################
+remove_path_groups -all
+set inp [all_inputs -exclude_clock_ports ]
+set outp  [all_outputs]
+set mems [get_cells -hierarchical -filter "is_hard_macro==true"]
+set icgs  [filter_collection [all_registers] "is_integrated_clock_gating_cell==true"]
+set regs  [remove_from_collection [all_registers -edge_triggered] $icgs]
+set allregs  [all_registers] 
+
+group_path   -name In2Reg       -from  $inp -to $allregs 
+group_path   -name Reg2Out      -from $allregs -to $outp  
+group_path   -name In2Out       -from $inp   -to $outp  
+group_path   -name Reg2Reg      -from $regs -to $regs  
+group_path   -name Reg2Mem      -from $regs -to $mems  
+group_path   -name Mem2Reg      -from $mems -to $regs  
+group_path   -name Reg2ClkGate  -from $allregs -to $icgs 
+#update_timing
+
+
+
+###########################  SETUP(max)  ##########################################
+alias soc sizeof_collection
+alias gc get_cell
+alias gp get_port
+alias gn get_net
+alias gon get_object_name
+alias soc sizeof_collection
+alias gc get_cell
+alias gp get_port
+alias gn get_net
+alias gon get_object_name
+
+proc timing_summary {{fanout 0} {max_paths 10000000}} {
+#	set_host_options -max_cores 16 
+        puts "$fanout $max_paths"
+        set_host_options -max_cores 16
+        set bname [get_attr [current_block] name]
+        set file [open timing_report_test2_${bname}.rpt w]
+        set filex [open timing_report_test2_${bname}.csv w]
+        puts $filex "STARTPOINT, ENDPOINT, NON_BUF, BUF_INV,MULTI_FANOUT_BUF_INV,SINGLE_FANOUT_BUF_INV, ALL, SLACK, START_FANOUT, END_FANIN, START_FAIOUT_MEM, END_FANIN_MEM"
+        puts $file "STARTPOINT\t\tENDPOINT\tNON_BUF\tBUF_INV\tMULTI_FANOUT_BUF_INV\tSINGLE_FANOUT_BUF_INV\tALL\tSLACK\tSTART_FANOUT\tEND_FANIN\tSTART_FAIOUT_MEM\tEND_FANIN_MEM"
+        foreach_in_collection c [get_timing_paths -start_end -group {Reg2Reg Reg2Mem Mem2Reg Reg2ClkGate In2Reg Reg2Out}  -slack_lesser_than 0] {
+                set non_buf [sizeof_collection [filter_collection [get_cells -quiet -of [get_attr [get_attr $c points] object] ] "is_sequential==false && ref_name!~*buf* && ref_name!~*inv* && ref_name!~*BUF* && ref_name!~*INV*"]]
+                set buf_inv [sizeof_collection [filter_collection [get_cells -quiet -of [get_attr [get_attr $c points] object] ] "is_sequential==false && (ref_name=~*buf* || ref_name=~*inv* || ref_name=~*BUF* || ref_name=~*INV*)"]]
+                set mult_fanout 0
+                foreach b_i [get_object_name [filter_collection [get_cells -quiet -of [get_attr [get_attr $c points] object] ] "is_sequential==false && (ref_name=~*buf* || ref_name=~*inv* || ref_name=~*BUF* || ref_name=~*INV*)"]] {
+                        if {[sizeof_collection [get_pins -of [get_nets -of [get_pins [get_pins -of [get_cells $b_i] -filter "direction==out"]]]]] != 2 } {
+                                incr mult_fanout
+                        }
+                }
+                set all [sizeof_collection [filter_collection [get_cells -quiet -of [get_attr [get_attr $c points] object] ] "is_sequential==false"]]
+                set st [get_object_name [get_attr $c startpoint]]
+                set en [get_object_name [get_attr $c endpoint]]
+              set en [get_object_name [get_attr $c endpoint]]
+                if {$fanout} {
+                        if {[get_attr $st object_class] == "pin"]} {
+                                set start_fanout [sizeof_collection [all_fanout -from [get_pins $st] -endpoints_only -only_cells -flat]]
+                                set start_fanout_mem [sizeof_collection [filter_collection [all_fanout -from [get_pins $st] -endpoints_only -only_cells -flat] "is_hard_macro==true"]]
+                                set end_fanin [sizeof_collection [all_fanin -to [get_pins $en] -startpoints_only -only_cells -flat]]
+                                set end_fanin_mem [sizeof_collection [filter_collection [all_fanin -to [get_pins $en] -startpoints_only -only_cells -flat] "is_hard_macro==true"]]
+                        } else {
+                                set start_fanout [sizeof_collection [all_fanout -from [get_ports $st] -endpoints_only -only_cells -flat]]
+                                set start_fanout_mem [sizeof_collection [filter_collection [all_fanout -from [get_ports $st] -endpoints_only -only_cells -flat] "is_hard_macro==true"]]
+                                set end_fanin [sizeof_collection [all_fanin -to [get_ports $en] -startpoints_only -only_cells -flat]]
+                                set end_fanin_mem [sizeof_collection [filter_collection [all_fanin -to [get_ports $en] -startpoints_only -only_cells -flat] "is_hard_macro==true"]]
+                        }
+                } else {
+                }
+                set slack [get_attr $c slack]
+                set sigle_f [expr $buf_inv - $mult_fanout]
+                if {$fanout} {
+                        puts $filex "$st, $en, $non_buf, $buf_inv,$mult_fanout,$sigle_f, $all, $slack,$start_fanout,$end_fanin, $start_fanout_mem,$end_fanin_mem"
+                        puts $file "$st\t$en\t$non_buf\t$buf_inv\t$mult_fanout\t$sigle_f\t$all\t$slack\t$start_fanout\t$end_fanin\t $start_fanout_mem\t$end_fanin_mem"
+                } else {
+                        puts $filex "$st, $en, $non_buf, $buf_inv,$mult_fanout,$sigle_f, $all, $slack"
+                        puts $file "$st\t$en\t$non_buf\t$buf_inv\t$mult_fanout\t$sigle_f\t$all\t$slack"
+                }
+
+        }
+        close $file
+	close $filex
+	set_host_options -max_cores 4
+}
+puts "use this proc \"timing_summary\" for dumping setup violations"
+
+
+
+###########################  HOLD(min)  ##########################################
+proc timing_summary_min_dl {{fanout 0} {max_paths 100000}} {
+puts "$fanout $max_paths"
+        set_host_options -max_cores 16
+        set bname [get_attr [current_block] name]
+        set file [open timing_report_${bname}_custom_min_dl.rpt w]
+        set filex [open timing_report_${bname}_custom_min_dl.csv w]
+        puts $filex "STARTPOINT, ENDPOINT, NON_BUF, BUF_INV,MULTI_FANOUT_BUF_INV,SINGLE_FANOUT_BUF_INV, ALL, SLACK, SKEW"
+        puts $file "STARTPOINT\t\tENDPOINT\tNON_BUF\tBUF_INV\tMULTI_FANOUT_BUF_INV\tSINGLE_FANOUT_BUF_INV\tALL\tSLACK\tSKEW"
+        foreach_in_collection c [get_timing_paths -start_end -group {Reg2Reg Reg2Mem Mem2Reg Reg2ClkGate}  -slack_lesser_than -0.000 -delay_type min] {
+                set non_buf [sizeof_collection [filter_collection [get_cells -of [get_attr [get_attr $c points] object] ] "is_sequential==false && ref_name!~*buf* && ref_name!~*inv* && ref_name!~*BUF* && ref_name!~*INV*"]]
+                set buf_inv [sizeof_collection [filter_collection [get_cells -of [get_attr [get_attr $c points] object] ] "is_sequential==false && (ref_name=~*buf* || ref_name=~*inv* || ref_name=~*BUF* || ref_name=~*INV*)"]]
+                set mult_fanout 0
+                foreach b_i [get_object_name [filter_collection [get_cells -of [get_attr [get_attr $c points] object] ] "is_sequential==false && (ref_name=~*buf* || ref_name=~*inv* || ref_name=~*BUF* || ref_name=~*INV*)"]] {
+                        if {[sizeof_collection [get_pins -of [get_nets -of [get_pins [get_pins -of [get_cells $b_i] -filter "direction==out"]]]]] != 2 } {
+                                incr mult_fanout
+                        }
+                }
+                set all [sizeof_collection [filter_collection [get_cells -of [get_attr [get_attr $c points] object] ] "is_sequential==false"]]
+                set st [get_object_name [get_attr $c startpoint]]
+                set en [get_object_name [get_attr $c endpoint]]
+                if {$fanout} {
+                        if {[get_attr $st object_class] == "pin"]} {
+                                set start_fanout [sizeof_collection [all_fanout -from [get_pins $st] -endpoints_only -only_cells -flat]]
+                                set start_fanout_mem [sizeof_collection [filter_collection [all_fanout -from [get_pins $st] -endpoints_only -only_cells -flat] "is_hard_macro==true"]]
+                                set end_fanin [sizeof_collection [all_fanin -to [get_pins $en] -startpoints_only -only_cells -flat]]
+                                set end_fanin_mem [sizeof_collection [filter_collection [all_fanin -to [get_pins $en] -startpoints_only -only_cells -flat] "is_hard_macro==true"]]
+                        } else {
+                                set start_fanout [sizeof_collection [all_fanout -from [get_ports $st] -endpoints_only -only_cells -flat]]
+                                set start_fanout_mem [sizeof_collection [filter_collection [all_fanout -from [get_ports $st] -endpoints_only -only_cells -flat] "is_hard_macro==true"]]
+                                set end_fanin [sizeof_collection [all_fanin -to [get_ports $en] -startpoints_only -only_cells -flat]]
+                                set end_fanin_mem [sizeof_collection [filter_collection [all_fanin -to [get_ports $en] -startpoints_only -only_cells -flat] "is_hard_macro==true"]]
+                        }
+                } else {
+                }
+		set skew [expr [ get_attr $c endpoint_clock_latency] - [ get_attr $c startpoint_clock_latency]]		
+                set slack [get_attr $c slack]
+                set sigle_f [expr $buf_inv - $mult_fanout]
+                if {$fanout} {
+                        puts $filex "$st, $en, $non_buf, $buf_inv,$mult_fanout,$sigle_f, $all, $slack,$start_fanout,$end_fanin, $start_fanout_mem,$end_fanin_mem"
+                        puts $file "$st\t$en\t$non_buf\t$buf_inv\t$mult_fanout\t$sigle_f\t$all\t$slack\t$start_fanout\t$end_fanin\t $start_fanout_mem\t$end_fanin_mem"
+                } else {
+                        puts $filex "$st, $en, $non_buf, $buf_inv,$mult_fanout,$sigle_f, $all, $slack, $skew"
+                        puts $file "$st\t$en\t$non_buf\t$buf_inv\t$mult_fanout\t$sigle_f\t$all\t$slack\t$skew"
+                }
+
+        }
+        close $file
+	close $filex
+}
+puts "use this proc \"timing_summary_min_dl\" for dumping hold violations"
+#timing_summary_min_dl
