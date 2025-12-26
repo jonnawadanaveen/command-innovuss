@@ -1,0 +1,105 @@
+#! /bin/tcsh
+#rm summary.csv
+
+echo "BLOCK_NAME: NPU_HOST_MACRO\n"
+
+
+################# REPORT_GLOBAL_TIMING OF EACH STAGE########################
+
+set a = "insert_dft final clock_opt_cts clock_opt_opto route_auto route_opt chip_finish"
+foreach t ($a) 
+	set file = "../reports/$t/report_global_timing.rpt"
+	echo "\n$t :"
+	grep "Setup\|Hold" -A6 $file 
+end
+
+
+################### VT PERCENTAGES ############################
+
+set f = "final clock_opt_opto route_opt chip_finish"
+foreach g ($f)
+	echo "$g VT PERCENTAGES:"
+	less ../reports/$g/rx_pdr_top_macro.report_threshold_voltage_group | awk '{print $1,$3}' | head -n 37 | tail -n 7
+	echo "\n"
+end
+
+#####################TO GET UTILIZATION OF EACH STAGE####################
+
+echo "\nUTILIZATION OF EACH STAGE:" 
+set a = "compile insert_dft final clock_opt_cts clock_opt_opto route_auto route_opt"
+set b = ""
+foreach t ($a) 
+	set file = "../reports/${t}/rx_pdr_top_macro.core_utilization.rpt"
+        set c = `grep "Overall Utilization is" $file | awk '{print $5}'`
+        if ($c == "") then
+		set c = 0
+	endif
+	set b = ($b $c)
+end 
+echo "STAGE\t$a"
+echo "UTILIZATION\t$b"
+
+
+################### CONGESTION ######################
+
+echo "\nCongestion in Final stage:"
+echo "Name\tOverflow(%)"
+grep "H routing\|V routing" ../reports/final/rx_pdr_top_macro.report_congestion.rpt | awk '{print $1,$2,$10}' | sed -s 's@)@@g'
+
+echo "\nCongestion in clock_opt_opto stage:"
+echo "Name\tOverflow (%)"
+grep "H routing\|V routing" ../reports/clock_opt_opto/rx_pdr_top_macro.report_congestion.rpt | awk '{print $1,$2,$10}' | sed -s 's@)@@g'
+
+################## DRCs COUNT IN FC #############################
+
+set f = `grep "DRCs =" ../reports/chip_finish/rx_pdr_top_macro.check_routes | awk '{print $6}'`
+echo "\nTotal no.of DRC's in FC: $f" 
+
+################ DRCs COUNT IN ICV###########################
+echo "DRC's in ICV:" 
+set z = "../../verif/work/drc_24_07_08/drc_summary.rpt"
+grep "no of base\|no of metals\|no of all" $z 
+
+
+##################### TO GET RUNTIME OF EACH STAGE ####################
+
+echo "RUNTIME OF EACH STAGE:"
+
+set a = "init_design compile insert_dft final clock_opt_cts clock_opt_opto route_auto route_opt chip_finish"
+set b = ""
+foreach t ($a) 
+	set file = "../logfiles/$t.log"
+	set pat = "total_{$t}_execution"
+	set x = `grep ^$pat $file | tail -1 | awk '{print $3}'`
+	if ( $x == "") then
+		set x = `grep -A1 ^$pat $file | tail -1 | awk '{print $2}'`
+	endif
+	if ($x == "") then
+		set x = 0
+	endif
+	set b = ($b $x)
+
+end
+
+echo "STAGE\t$a"
+echo "RUNTIME\t$b" 
+	
+
+##################### INSTANCE COUNT #########################
+
+set b = `grep "LEAF CELLS" ../reports/final/rx_pdr_top_macro.report_design | awk '{print $4}'`
+echo "\nNo.of leaf cells: : $b" 
+
+###################### SEQUENTIAL COUNT ######################
+
+set c = `grep "Sequential" ../reports/final/rx_pdr_top_macro.report_design | awk '{print $2}'`
+echo "\nNo.of sequential cells: $c" 
+
+#################### MULTI-BIT PERCENTAGE ######################
+
+set j = "../reports/final/report_multibit.rpt"
+echo "Bit-Width No of instance(%)" 
+grep "2 -bit\|4 -bit\|8 -bit" $j | awk '{print $1,$5}'
+
+
+cat summary.csv | mailx -s "Block_Status" -a summary.csv vdasi@cisco.com
