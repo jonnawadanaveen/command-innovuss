@@ -1,0 +1,73 @@
+define_proc base_3fill_abbutment -description "Removes singlie width FILL_MVT_1 abbutment patterns & adds incremental fill, to avoid DRC violations." {
+    {skip_check_filler "true" -skip_check_filler bool optional "Do not run check_filler at the end of this procedure. By default check_filler is run."}
+} {
+
+set_db eco_batch_mode true
+array unset orig_eco_attributes_array
+array set orig_eco_attributes_array [pd_innovus_eco_interactive_settings]
+set core_site_size_x [get_db current_design .core_site.size.x]
+set_message -id IMPOPT-3137 -suppress; # Functionality check has been turned off for this eco_update_cell operation.
+set_message -id IMPECO-246  -suppress; # Physical only instances are instances of cells which do not have a timing model.
+###### to avoid 3 singlewidth filler abbut pattern 
+	set count 0
+	eval_legacy {deselectAll}
+	set abbut3_mvt_inst ""
+	
+        foreach fill1_inst [get_db insts -if {.base_cell.name == *_FILL_MVT_1}] {
+            set fill1_base_cell [get_db $fill1_inst .base_cell.name]
+            set fill1_inst_box [get_db $fill1_inst .bbox]
+            set search1_box [get_computed_shapes [get_computed_shapes $fill1_inst_box MOVE "$core_site_size_x 0"] SIZE -0.01]
+	    set search2_box [get_computed_shapes [get_computed_shapes $fill1_inst_box MOVE "[expr {2*$core_site_size_x}] 0"] SIZE -0.01] 
+            set right1_inst [get_obj_in_area -areas $search1_box -obj_type inst]
+            set right1_inst_base_name [get_db $right1_inst .base_cell.name]
+	    set right2_inst [get_obj_in_area -areas $search2_box -obj_type inst]
+            set right2_inst_base_name [get_db $right2_inst .base_cell.name]
+            if { [regexp {_FILL_MVT_1$} $right1_inst_base_name] && [regexp {_FILL_MVT_1$} $right2_inst_base_name] } {
+                # to  delete 3 single width MVT_1 fill abbutted cells:
+		 lappend abbut3_mvt_inst $right1_inst 
+		 lappend abbut3_mvt_inst $right2_inst
+		 lappend abbut3_mvt_inst $fill1_inst
+                incr count
+            }
+        }
+
+	select_obj [get_db $abbut3_mvt_inst]
+	puts "PD_INFO : Deleting abbutted 3 single width fills "
+	delete_inst -inst [get_db selected .name]
+	set_db eco_batch_mode false
+	puts "PD_INFO : adding incremental fill "
+	add_fillers -eco_mode true -base_cells [get_lib_cells {*FILL*_MVT* *FILL1 *FILL2 *FILL3 *FILL4}] -check_drc true -check_different_cells true
+	check_filler
+	check_place
+	foreach attr [array names orig_eco_attributes_array] {
+            set_db $attr $orig_eco_attributes_array($attr)
+        }
+
+
+	if { $skip_check_filler eq {true} } {
+		set count 0
+	        foreach fill1_inst [get_db insts -if {.base_cell.name == *_FILL_MVT_1}] {
+	            set fill1_base_cell [get_db $fill1_inst .base_cell.name]
+	            set fill1_inst_box [get_db $fill1_inst .bbox]
+	            set search1_box [get_computed_shapes [get_computed_shapes $fill1_inst_box MOVE "$core_site_size_x 0"] SIZE -0.01]
+		    set search2_box [get_computed_shapes [get_computed_shapes $fill1_inst_box MOVE "[expr {2*$core_site_size_x}] 0"] SIZE -0.01] 
+	            set right1_inst [get_obj_in_area -areas $search1_box -obj_type inst]
+	            set right1_inst_base_name [get_db $right1_inst .base_cell.name]
+		    set right2_inst [get_obj_in_area -areas $search2_box -obj_type inst]
+	            set right2_inst_base_name [get_db $right2_inst .base_cell.name]
+	            if { [regexp {_FILL_MVT_1$} $right1_inst_base_name] && [regexp {_FILL_MVT_1$} $right2_inst_base_name] } {
+	                incr count
+	            }
+	        }
+		if {$count > 0} {
+	            puts "FILL_INFO : filler abbutment pattern found so suspending to do interactive, after fixing execute resume command"
+		    suspend
+		} else {
+			puts "FILL_INFO : No, abbutted 3 single width fills found "
+		}
+
+	}
+	set_message -id IMPOPT-3137 -unsuppress; # Functionality check has been turned off for this eco_update_cell operation.
+        set_message -id IMPECO-246  -unsuppress; # Physical only instances are instances of cells which do not have a timing model.
+
+}	
