@@ -1,0 +1,34 @@
+puts "Eg ussage : input_ports_first_lvl gb2ifc_rq2pf_sel[*] gb2ifc_usc_rel_data_vld[*]  "
+puts  "Eg ussage : output_ports_first_lvl gb2ifc_rq2pf_sel[*] gb2ifc_usc_rel_data_vld[*]"
+proc input_ports_first_lvl {args} {
+    if {$args != ""} {
+        set flops_1stlvl_in [get_object_name [get_cells [all_fanout -from [get_ports -of_objects $args] -flat -quiet -endpoints_only -only_cells] -filter "is_sequential==true && is_hard_macro==false"]]
+        
+        # Substitute numbers between _mb_to_ with *
+        set sub_mbto_1stlvl_flops_in [regsub -all {_(\d+)_mb_to_(\d+)_} $flops_1stlvl_in {*}]
+        
+        # Substitute _X_ with /
+        set sub_X_sub_mbto_1stlvl_flops_in [regsub -all {_X_} $sub_mbto_1stlvl_flops_in {/}]
+        
+        return $sub_X_sub_mbto_1stlvl_flops_in
+    } else {
+        puts "please give input ports"
+    }
+}
+
+proc output_ports_first_lvl {args} {
+    if {$args != ""} {
+        set flops_1stlvl_out [get_object_name [get_cells [all_fanin -to [get_ports -of_objects $args] -flat -quiet -startpoints_only -only_cells] -filter "is_sequential==true && is_hard_macro==false"]]
+        
+        # Substitute numbers between _mb_to_ with *
+        set sub_mbto_1stlvl_flops_out [regsub -all {_(\d+)_mb_to_(\d+)_} $flops_1stlvl_out {*}]
+        
+        # Substitute _X_ with /
+        set sub_X_sub_mbto_1stlvl_flops_out [regsub -all {_X_} $sub_mbto_1stlvl_flops_out {/}]
+        
+        return $sub_X_sub_mbto_1stlvl_flops_out
+    } else {
+        puts "please give output ports"
+    }
+}
+
