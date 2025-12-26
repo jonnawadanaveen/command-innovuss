@@ -1,0 +1,122 @@
+############# Below proc is to create routing blockages of M13, M14 and M15 on atpg_cells to avoid DM13.S.2.1 and M13.S.1 violations in ICV (signoff stage) ####################
+proc atpg_blockages {} {
+
+	set cells [get_object_name [get_cells *atpg_occ*]]
+	
+	set count [llength $cells]
+
+########### If block don't have atpg_occ cells, No need to create routing blockages ##########
+	
+	if {$count == 0} { 
+		puts "No atpg_occ cells"
+
+########### If block have one atpg_occ cell,below command creates routing bockages on that cell wherever cell is located in the core area by using bbox of the cell ##########
+
+	} elseif {$count == 1} {
+		set bbox1 [get_attribute [get_cells $cells] bbox]
+		set x1 [lindex [lindex $bbox1 0 ] 0]
+		set x2 [lindex [lindex $bbox1 1 ] 0]
+		set y1 [lindex [lindex $bbox1 0 ] 1]
+		set y2 [lindex [lindex $bbox1 1 ] 1]
+
+		set boundary "{[expr $x1 - 0.5] [expr $y1 - 0.5]} {[expr $x2 + 0.5] [expr $y2 + 0.5]}"
+		create_routing_blockage -name_prefix FPRG#_clk -layers {M13 M14 M15} -net_types {power ground} -boundary $boundary -zero_spacing
+
+########### If block have two atpg_occ cells, below commands creates routing blockages on those two cells wherever cells are loctaed in the core area by using bbox of the cells ########
+
+	} elseif {$count ==2} {
+
+		
+		set bbox1 [get_attribute [get_cells [lindex $cells 0]] bbox]
+
+		set bbox2 [get_attribute [get_cells [lindex $cells 1]] bbox]
+
+		set x1 [lindex [lindex $bbox1 0 ] 0]
+		set x2 [lindex [lindex $bbox1 1 ] 0]
+		set y1 [lindex [lindex $bbox1 0 ] 1]
+		set y2 [lindex [lindex $bbox1 1 ] 1]
+	
+		set boundary "{[expr $x1 - 0.5] [expr $y1 - 0.5]} {[expr $x2 + 0.5] [expr $y2 + 0.5]}"
+		create_routing_blockage -name_prefix FPRG#_WRCK -layers {M13 M14 M15} -net_types {power ground} -boundary $boundary -zero_spacing
+
+
+		set x1 [lindex [lindex $bbox2 0 ] 0]
+		set x2 [lindex [lindex $bbox2 1 ] 0]
+		set y1 [lindex [lindex $bbox2 0 ] 1]
+		set y2 [lindex [lindex $bbox2 1 ] 1]
+
+		set boundary "{[expr $x1 - 2.04] [expr $y1 - 2.04]} {[expr $x2 + 2.04] [expr $y2 + 2.04]}"
+		create_routing_blockage -name_prefix FPRG#_clk -layers {M13 M14 M15} -net_types {power ground} -boundary $boundary -zero_spacing
+	}
+
+}
+
+
+
+
+
+#################### Below proc is to create routing blockages of M13,M14 and M15 at edges to avoid shorts of pg stripes with signal ports ####################
+
+proc create_routing_blockages_M13M14M15_at_edges_for_pg {} {
+
+	set width [get_attribute [current_block] width]
+	set height [get_attribute [current_block] height] 
+	set coordinates [get_attribute [current_block] boundary]
+	set count [llength [get_attribute [current_block] boundary]]
+
+	for {set i 0} { $i < $count} { incr i} {
+		set a [lindex [lindex $coordinates $i ] 0]
+  		if { $a != 0.000} {
+			if {$a != $width} {
+				set x $a
+			}
+		}
+		set b [lindex [lindex $coordinates $i ] 1]
+  		if { $b != 0.000} {
+			if {$b != $height} {
+				set y $b
+			}
+		}
+	}
+
+################## If block is rectangular, below commands create routing blockages at top and right edges##################
+	if {$count == 4 } {
+
+		################## To create M13 & M14 & M15 routing blockage at top edge with 2.1 width ####################
+		set boundary "{0.000 [expr $height - 2.1]} {$width $height}"
+		create_routing_blockage -name_prefix FPRG#_top -layers {M13 M14 M15} -net_types {power ground} -boundary $boundary -zero_spacing
+
+		################## To create M13 & M14 & M15 routing blockage at right edge with 2.04 width  ####################
+		set boundary "{[expr $width - 2.04] 0.000} {$width $height}"
+		create_routing_blockage -name_prefix FPRG#_right -layers {M13 M14 M15} -net_types {power ground} -boundary $boundary -zero_spacing
+
+########## If block is L shape, below commands creates routing blockages at Top and Right edges ####################
+
+	} else {
+
+		set boundary "{0.000 [expr $height - 2.1]} {$x $height}"
+		create_routing_blockage -name_prefix FPRG#_top1 -layers {M13 M14 M15} -net_types {power ground} -boundary $boundary -zero_spacing
+
+		set boundary "{[expr $x - 2.04] [expr $y - 2.1]} {$width $y}"
+		create_routing_blockage -name_prefix FPRG#_top2 -layers {M13 M14 M15} -net_types {power ground} -boundary $boundary -zero_spacing
+
+		set boundary "{[expr $x - 2.04] $y} {$x $height}"
+		create_routing_blockage -name_prefix FPRG#_right1 -layers {M13 M14 M15} -net_types {power ground} -boundary $boundary -zero_spacing
+
+		set boundary "{[expr $width - 2.04] 0.000} {$width $y}"
+		create_routing_blockage -name_prefix FPRG#_right2 -layers {M13 M14 M15} -net_types {power ground} -boundary $boundary -zero_spacing
+
+	}
+
+############## Below commands creates routing blockages for both rectangular and L shape blocks at Left and Bottom edges ##################
+
+	################## To create M13 & M14 & M15 routing blockage at left edge with 2.04 width ####################
+	set boundary "{0.000 0.000} {2.04 $height}"
+	create_routing_blockage -name_prefix FPRG#_left -layers {M13 M14 M15} -net_types {power ground} -boundary $boundary -zero_spacing
+
+	################## To create M13 & M14 & M15 routing blockage at bottom edge with 2.1 width ####################
+	set boundary "{0.000 0.000} {$width 2.1}"
+	create_routing_blockage -name_prefix FPRG#_bottom -layers {M13 M14 M15} -net_types {power ground} -boundary $boundary -zero_spacing
+
+
+}
