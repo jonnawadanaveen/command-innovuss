@@ -426,7 +426,7 @@ reate_skew_group -name skg1 -constrains cts -source clk -exclusive_sinks $pins1 
 Set color
 set_layer_preference cellPad -color {red yellow green blue}
 
-Add file interactive
+Add filler interactive
 add_fillers -eco_mode true -base_cells [get_lib_cells {*FILL*_MVT* *FILL1 *FILL2 *FILL3 *FILL4}] -check_drc true -check_different_cells true
 
 Additional route
@@ -469,3 +469,18 @@ edit_trim_routes -type float -nets {VDD VSS}
 
 Scan logic in place reoder
 set_db reorder_scan_comp_logic true
+
+Uses nondefault spacing rules for nondefault wires[route rule on nets]
+route_strict_honor_route_rule {true | false | bottom_layer_num:top_layer_num | wire bottom_layer_num:top_layer_num}
+route_shield_stripe_layer_range
+route_shield_length_threshold
+route_selected_net_only
+route_route_clock_nets_first
+set_route_attributes
+route_rc_extraction_corner
+route_honor_power_domain
+edit_update_route_status -nets [get_db clock_trees .nets *] -to cover
+route_detail_on_grid_only
+route_detail_post_route_spread_wire
+route_detail_min_length_for_widen_wire
+route_detail_min_length_for_spread_wire
