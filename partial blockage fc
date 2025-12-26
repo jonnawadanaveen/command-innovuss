@@ -1,0 +1,89 @@
+##################### Partial blockage to design or macro #####################
+
+ 
+
+puts "Usage : designBlk <square box height> <density percentage>"
+suppress_message ATTR-3
+proc designBlk { height blkg_percent} {
+set box [get_attribute [current_design ] boundary]
+set macro_boxes [get_attribute [get_cells -hier -filter "is_hard_macro == true" ] bbox ]
+set macro_resize_boxes [get_attribute [resize_polygons -objects [get_attribute [get_cells -hier -filter "is_hard_macro == true" ] bbox ] -size {1000 1000 1000 1000} ] poly_rects]
+set macro_temp_boxes [get_attribute [compute_polygons -objects1 [create_poly_rect -boundary $box ] -operation AND -objects2 $macro_resize_boxes ] poly_rects ]
+set macro_channel_boxes [get_attribute [compute_polygons -objects1 $macro_temp_boxes -operation XOR -objects2 $macro_boxes ] poly_rects]
+set box1 [get_attribute [current_design ] bbox]
+set x1 [lindex [lindex $box1 0] 0]
+set x2 [lindex [lindex $box1 1] 0]
+set y1 [lindex [lindex $box1 0] 1]
+set y2 [lindex [lindex $box1 1] 1]
+set x [expr ceil ([expr [expr $x2-$x1 ]/$height])]
+set y [expr ceil ([expr [expr $y2-$y1 ]/$height])]
+        for {set i 0} {$i < $y} {incr i} {
+                for {set j 0} {$j < $x} {incr j} {
+                        set new_x1 [expr $x1 + [expr $j * $height]]
+                        set new_y1 $y1
+                        set new_x2 [expr $x1 + [expr [expr $j + 1] * $height]]
+                        set new_y2 [expr $y1 + $height]
+                        set new_box "{{$new_x1 $new_y1} {$new_x2 $new_y2}}"
+                        set pblk_num [expr {rand()}]
+                        set temp_box [get_attribute [compute_polygons -objects1 $macro_channel_boxes -operation AND -objects2 [create_poly_rect -boundary $new_box]] poly_rects]
+                        if {$temp_box != "" } {
+                            if { [llength [join [ join [get_attribute $temp_box bbox]]]] > 4 } {
+                                foreach ii [get_attribute $temp_box bbox ] {
+                                        create_placement_blockage -type partial -boundary $ii -blocked_percentage $blkg_percent }
+
+ 
+
+                           } else { create_placement_blockage -type partial -boundary $temp_box -blocked_percentage $blkg_percent }
+                }}
+        set y1 [expr $y1 + $height]
+        }
+}
+
+ 
+
+designBlk 5 50
+
+ 
+
+puts "Usage : macroChnSmallBlk <square box height> <density percentage>"
+suppress_message ATTR-3
+proc macroChnSmallBlk { height blkg_percent} {
+set box [get_attribute [current_design ] boundary]
+set macro_boxes [get_attribute [get_cells -hier -filter "is_hard_macro == true" ] bbox ]
+set macro_resize_boxes [get_attribute [resize_polygons -objects [get_attribute [get_cells -hier -filter "is_hard_macro == true" ] bbox ] -size {20 15 20 15} ] poly_rects]
+set macro_temp_boxes [get_attribute [compute_polygons -objects1 [create_poly_rect -boundary $box ] -operation AND -objects2 $macro_resize_boxes ] poly_rects ]
+set macro_channel_boxes [get_attribute [compute_polygons -objects1 $macro_temp_boxes -operation XOR -objects2 $macro_boxes ] poly_rects]
+set box1 [get_attribute [current_design ] bbox]
+set x1 [lindex [lindex $box1 0] 0]
+set x2 [lindex [lindex $box1 1] 0]
+set y1 [lindex [lindex $box1 0] 1]
+set y2 [lindex [lindex $box1 1] 1]
+set x [expr ceil ([expr [expr $x2-$x1 ]/$height])]
+set y [expr ceil ([expr [expr $y2-$y1 ]/$height])]
+        for {set i 0} {$i < $y} {incr i} {
+                for {set j 0} {$j < $x} {incr j} {
+                        set new_x1 [expr $x1 + [expr $j * $height]]
+                        set new_y1 $y1
+                        set new_x2 [expr $x1 + [expr [expr $j + 1] * $height]]
+                        set new_y2 [expr $y1 + $height]
+                        set new_box "{{$new_x1 $new_y1} {$new_x2 $new_y2}}"
+                        set pblk_num [expr {rand()}]
+                        set temp_box [get_attribute [compute_polygons -objects1 $macro_channel_boxes -operation AND -objects2 [create_poly_rect -boundary $new_box]] poly_rects]
+                        if {$temp_box != "" } {
+                            if { [llength [join [ join [get_attribute $temp_box bbox]]]] > 4 } {
+                                foreach ii [get_attribute $temp_box bbox ] {
+                                        create_placement_blockage -type partial -boundary $ii -blocked_percentage $blkg_percent }
+
+ 
+
+                           } else { create_placement_blockage -type partial -boundary $temp_box -blocked_percentage $blkg_percent }
+                }}
+        set y1 [expr $y1 + $height]
+        }
+}
+
+ 
+
+macroChnSmallBlk 5 50
+ 
+
