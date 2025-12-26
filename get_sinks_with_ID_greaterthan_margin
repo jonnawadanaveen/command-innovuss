@@ -1,0 +1,16 @@
+puts "please Do the time_design of respective stage before using this proc" 
+puts "ussage : \"get_sinks_with_ID_greaterthan_margin 0.800 core_clk/all_ss0p675v0c_cworst_T_0\" \t default skew_group is \"core_clk/all_ss0p675v0c_cworst_T_0\" if,not given "
+puts " cells with their Id ,dumped in this file \"sinks_id_greaterthan_margin.tcl\" "
+
+proc get_sinks_with_ID_greaterthan_margin { margin {skew_group core_clk/all_ss0p675v0c_cworst_T_0} } {
+	set fp [open "sinks_id_greaterthan_margin.tcl" w]
+	set sinks [get_db skew_group:$skew_group .sinks_active.name]
+	puts $fp "array unset cells_1\narray set cells_1 {}"
+	foreach sink $sinks {
+		set ID [get_skew_group_delay -skew_group $skew_group -to $sink]
+		if {$ID > $margin} {
+			puts $fp "lappend cells_1($sink) $ID"
+		}
+	}
+	close $fp
+}
