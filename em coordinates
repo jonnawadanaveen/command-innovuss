@@ -1,0 +1,51 @@
+puts "Ussage: em_markers <rhsc run path :> "
+puts "if em_run_path is not given it will take current run path "
+proc em_markers {em_run_path} {
+set block(sms_gb_macro) {9116.3520 14766.1920}  
+set block(sms_ifc_macro) {13209.4080 14766.1920}
+set block(i_pdsd_center_emg_xb_macro) {10558.2240 11586.9600}
+set block(pdsd_quad_empd_macro) {10558.2240 9901.5840}
+set block(center_info_vchannel_macro) {2899.197000 2221.6319999999996}
+set block(sms_bank_mem_macro) {9116.3520 7871.4720}
+set block(fllb_dual_slice_macro) {2217.0720 10610.2080}
+set block(rxcgm_macro) {5767.4880 10418.6880}
+	global tool
+	global PD_RHSC_PATH	
+		set block_name [get_db designs .name]
+		set top_coord_x [lindex $block($block_name) 0]
+		set top_coord_y [lindex $block($block_name) 1]
+		if {[info exists em_run_path]} {
+			set sigem_file [string cat $em_run_path "/reports/sigEM/rms_metal_em.rpt"]
+		} else {
+			set sigem_file [string cat $PD_RHSC_PATH "/reports/sigEM/rms_metal_em.rpt"]
+		}
+		set_message -id IMPVB-29 -suppress
+		if { [file exists $sigem_file] == 1} { 
+			puts "file found : $sigem_file"
+			eval_legacy { violationBrowserDelete -tool Innovus }
+			set fp [open $sigem_file r]
+			set data [read $fp]
+			set lines [split $data "\n"]
+			if {$tool == "innovus"} {
+				foreach line $lines {
+					if {[regexp fail $line ]} {
+						set x1 [expr [lindex [split [lindex [split [lindex $line 1] ,] 0] "("] 1] - $top_coord_x]
+						set y1 [expr [lindex [split [lindex [split [lindex $line 1] ,] 1] ")"] 0] - $top_coord_y]
+						set x2 [expr [lindex [split [lindex [split [lindex $line 2] ,] 0] "("] 1] - $top_coord_x]
+						set y2 [expr [lindex [split [lindex [split [lindex $line 2] ,] 1] ")"] 0] - $top_coord_y]	
+						set marker_loc "$x1 $y1 $x2 $y2"
+						create_marker -bbox $marker_loc -tool Innovus -type METAL_EM -sub_type signal_em -layer [lindex $line 0] -description "Signal_em on this layer by violation:[lindex $line 7] & current:[lindex $line 5] ; net : [lindex $line end]"
+					}
+				}
+			} else {
+
+			}
+		close $fp
+		} else {
+			puts "please make sure , you have ran RHSC run "
+		}
+		set_message -id IMPVB-29 -unsuppress
+		
+}
+		
+#../../rhsc/reports/static/PowerEM/metal_em.rpt
