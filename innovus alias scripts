@@ -1,0 +1,97 @@
+proc highlight_macros {} {
+	set fp [open "wdefa.rpt" w]
+	puts $fp [join [get_db [get_db insts -if {.is_memory==true}] .name] "\n"]
+	close $fp
+ 	if {[file exists "macros_list.rpt"]} {
+		exec rm -rf macros_list.rpt 
+ 		exec cat wdefa.rpt | sort -u | sed {s/[0-9]\+/*/g} | uniq -c > macros_list.rpt
+	} else { 
+		exec cat wdefa.rpt | sort -u | sed {s/[0-9]\+/*/g} | uniq -c > macros_list.rpt
+  	}
+	set gp [open "macros_list.rpt" r]
+	set i 1
+	while {[gets $gp line] >= 0} {
+		puts $line
+		set inst [lindex $line 1]
+		select_obj [get_db insts *$inst*]
+		gui_highlight -index $i
+		gui_deselect -all
+		incr i
+	}
+	close $gp
+	exec rm -rf wdefa.rpt
+	puts "please check \" macros_list.rpt\" for memories list and count"
+}
+
+
+alias win "eval_legacy {win}"
+alias winoff gui_hide
+alias gd get_db
+alias so select_obj
+alias do deselect_obj -all
+alias gc get_cells
+alias gpo get_ports
+alias gp get_pins
+alias gn get_nets
+alias rt report_timing
+alias gl get_lib_cells
+alias gs "get_db selected .name"
+alias rtg "report_timing -output_format gtd"
+alias cpu16 "set_multi_cpu_usage -local_cpu 16 -acquire_license 16"
+alias cpu8 "set_multi_cpu_usage -local_cpu 8 -acquire_license 8"
+alias cpu24 "set_multi_cpu_usage -local_cpu 24 -acquire_license 24"
+alias cpu32 "set_multi_cpu_usage -local_cpu 32 -acquire_license 32"
+alias rs "eval_legacy {reportSelect}"
+###############################################
+proc net_length_per_layer {netname} {
+puts "\n#######################################################"
+puts "NETNAME: $netname"
+set wireList [get_db net:$netname .wires]
+set layername_length ""
+for {set wire 0} {$wire < [llength $wireList]} {incr wire} {
+        set layerName [get_db [lindex $wireList $wire] .layer.name]
+        set layerLength [get_db [lindex $wireList $wire] .length]
+        lappend layername_length $layerName $layerLength
+        }
+
+## MAKING AN ARRAY TO DISPLAY THE RESULTS ##
+unset -nocomplain length
+set count 0
+
+foreach i $layername_length { 
+if {[regexp "M" $i]} { set length($i) 0}
+}
+
+foreach i $layername_length {
+if {[regexp "M" $i]} {
+set length($i) [expr $length($i) + [lindex $layername_length [expr $count + 1]]]
+}
+incr count
+}
+parray length
+
+## TO FIND TOTAL NET LENGTH ##
+proc listadd L {expr [join $L +]+0}
+puts "TOTAL NET LENGTH = [listadd [get_db net:$netname .wires.length]]"
+puts "#######################################################\n"
+}
+
+###############################################
+proc pin_connect_info {args} {
+#	puts "Net : [get_object_name [get_nets -of_objects $args]] ; NET_length [expr [join [get_db [get_db nets [get_object_name [get_nets -of_objects $args]]] .wires.length ] "+"]]"
+	net_length_per_layer [get_object_name [get_nets -of_objects $args]]
+}
+proc hl {args} {
+	if {[lindex $args 1] eq "a" || [lindex $args 2] != ""} {
+		if {[lindex $args 1] eq "a" && [lindex $args 2] == ""} {
+			read_timing_debug_report [lindex $args 0]
+			gui_gtd_highlight_timing_report -all -append 
+		} else {
+			read_timing_debug_report [lindex $args 0]
+			gui_gtd_highlight_timing_report -all -append -color_index [lindex $args 2]
+		}
+	} else {
+		read_timing_debug_report [lindex $args 0]
+		gui_gtd_highlight_timing_report -all 
+	}
+}
