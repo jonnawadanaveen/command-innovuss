@@ -1,0 +1,11 @@
+puts "WARNING : please source this \"site_rows_cut_under_hard_blockage.tcl\" only in floorplan stage , if sourced in other stages cells within hard blockage will be unplaced" 
+
+set fp [open "cut_rows.tcl" w]
+foreach i [get_db place_blockages -if {.type == hard}] {
+	foreach j [get_db $i .shapes] {
+		set coordinate [get_db $j .rect]
+		puts $fp "split_row -area $coordinate ; #puts $i , $j"
+	}
+}
+close $fp
+puts "please source \"cut_rows.tcl\" for cutting site rows"
