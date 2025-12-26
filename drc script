@@ -1,0 +1,22 @@
+proc extend_shape_pg {coord} {
+	set file_handle [open "shapes_to_extend.tcl" w]
+	foreach metal {M6 M8 M10 M12} {	
+	set shapes [get_objects_by_location -within $coord -classes shape -f "layer.name== $metal && (owner.name==VDD || owner.name==VSS)"]
+			if {[sizeof_coll $shapes] >= 1} {
+		foreach_in_collection shape $shapes {
+		set shape_bbox [get_attribute [get_shapes $shape] bbox]	
+			set x1 [expr [lindex [lindex $shape_bbox 0 ] 0] - 0.2] ; #decrease by 0.2
+#			set x1 [lindex [lindex $shape_bbox 0 ] 0]
+			set y1 [lindex [lindex $shape_bbox 0 ] 1]
+			set x2 [lindex [lindex $shape_bbox 1 ] 0]
+#			set x2 [expr [lindex [lindex $shape_bbox 1 ] 0] + 0.2] ; #increase by 0.2
+			set y2 [lindex [lindex $shape_bbox 1 ] 1]
+			set new_dime "{$x1 $y1} {$x2 $y2}"
+			puts $file_handle "resize_objects \[get_shapes [get_object_name $shape] \] -bbox {$new_dime} -simple"
+
+		}
+		}
+		change_selection $shapes -add
+	}
+close $file_handle
+}
