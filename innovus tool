@@ -217,7 +217,7 @@ get_db inst:$instName .group.name
 get_db group:$instGrpName .members.name
 
 set_db [get_db base_cells *06_F*M8*_*_*] .dont_use true
-
+# to find the blockage information.
 get_db place_blockages 
 delete_obj [get_db place_blockages] 
 get_db route_blockages 
@@ -469,8 +469,8 @@ edit_trim_routes -type float -nets {VDD VSS}  --- floating nets it removed
 
 Scan logic in place reoder
 set_db reorder_scan_comp_logic true
-
-Uses nondefault spacing rules for nondefault wires[route rule on nets]
+############## route commands ###############
+1. Uses nondefault spacing rules for nondefault wires[route rule on nets]
 route_strict_honor_route_rule {true | false | bottom_layer_num:top_layer_num | wire bottom_layer_num:top_layer_num}
 route_shield_stripe_layer_range
 route_shield_length_threshold
@@ -479,8 +479,12 @@ route_route_clock_nets_first
 set_route_attributes
 route_rc_extraction_corner
 route_honor_power_domain
-edit_update_route_status -nets [get_db clock_trees .nets *] -to cover
+edit_update_route_status -nets [get_db clock_trees .nets *] -to cover [ this command is change status of nets]
 route_detail_on_grid_only
 route_detail_post_route_spread_wire
 route_detail_min_length_for_widen_wire
 route_detail_min_length_for_spread_wire
+
+2. You can change the width of a special net by using this command:
+select_routes -nets <net_name>
+edit_update_route_width -width_horizontal <value> -width_vertical <value>
