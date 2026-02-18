@@ -1,0 +1,59 @@
+#########################################################################
+# User : sampasup 
+# Command to get slack less than -5ps:: 
+# 	cat <pt/reports/transitions.<data|clock|ports>.rpt | grep @ | awk '{if ($1<-0.005) print $NF}' > drivers_pins.rpt
+# usage in innovus terminal: 
+# 	source /auto/gibraltar_b0-pdx/users/sampasup/scripts/eco_interactive_gui.tcl 
+# 	tran_report_seg <drivers_pins.rpt>
+# open the innnovus gui and press below keys in the keyboard 
+# 	p : for prev net
+# 	n : for next net
+#######################################################
+
+set all_nets ""
+set index 0
+proc tran_report_seg {rpt} {
+	global all_nets ""
+	global index 0
+	set fid [open $rpt]
+	while {[gets  $fid line]!=-1} {
+		set net [get_db nets .name $line]
+		set pin [get_db pins .name $line ]
+		set port [get_db ports .name $line]
+		if {$pin!="" && $net==""} {
+			set net [get_db [get_db pins -if {.name == $pin}] .net.name]
+		}
+		if {$port!="" && $net==""} {
+			set net [get_db [get_db ports -if {.name == $port}] .net.name]
+
+		}
+		lappend all_nets $net
+	}
+	close $fid
+}
+
+proc next_net {} {
+	global index
+	global all_nets
+	deselect_obj -all
+	incr index 1
+	puts "Currrent Net count : $index"
+	select_obj [lindex $all_nets $index]
+	puts "Selected :: [lindex $all_nets $index]"
+	gui_zoom -selected
+	
+}
+
+proc prev_net {} {
+	global index
+	global all_nets
+	deselect_obj -all
+	incr index -1
+	puts "Currrent Net count : $index"
+	select_obj [lindex $all_nets $index]
+	puts "Selected :: [lindex $all_nets $index]"
+	gui_zoom -selected
+}
+
+gui_bind_key p -cmd prev_net
+gui_bind_key n -cmd next_net
