@@ -59,3 +59,72 @@ foreach inst $cell_insts {
       } 
  } 
 close $out 
+
+3 to find the net driver and load count in innovus.
+foreach net $nets {
+    set drivers [get_db [get_db nets $net] .drivers.name]
+    if { $drivers == "" } {
+        set drivers [get_db [get_db hnets $net ] .net.drivers.name]
+        set loads [get_db [get_db hnets $net ] .net.loads.name ]
+    }
+    set loads [get_db [get_db pins $drivers] .net.loads.name]
+    set loads_n [llength $loads]
+    puts "$net :: $drivers :: $loads_n"
+
+         or
+foreach i $a {
+set b [get_db [get_nets $i] .name]
+set c [get_db [get_db net:$b] .drivers.name]
+puts "$c"
+}
+
+4. to find net length of net in innovus
+proc net_length_per_layer {netname} {
+puts "\n#######################################################"
+puts "NETNAME: $netname"
+set wireList [get_db net:$netname .wires]
+set layername_length ""
+for {set wire 0} {$wire < [llength $wireList]} {incr wire} {
+        set layerName [get_db [lindex $wireList $wire] .layer.name]
+        set layerLength [get_db [lindex $wireList $wire] .length]
+        lappend layername_length $layerName $layerLength
+        }
+
+## MAKING AN ARRAY TO DISPLAY THE RESULTS ##
+unset -nocomplain length
+set count 0
+
+foreach i $layername_length { 
+if {[regexp "M" $i]} { set length($i) 0}
+}
+
+foreach i $layername_length {
+if {[regexp "M" $i]} {
+set length($i) [expr $length($i) + [lindex $layername_length [expr $count + 1]]]
+}
+incr count
+}
+parray length
+
+## TO FIND TOTAL NET LENGTH ##
+proc listadd L {expr [join $L +]+0}
+puts "TOTAL NET LENGTH = [listadd [get_db net:$netname .wires.length]]"
+puts "#######################################################\n"
+}
+
+5. to dump sleected instance in gui
+set fp [open selected_cells.txt w]
+
+foreach inst [get_db selected -if {.objType == inst}] {
+    puts $fp [get_db $inst .name]
+}
+
+close $fp
+
+6. to deleted blockages.
+if {[get_db place_blockages] != ""} {
+  set_db [get_db place_blockages] .is_fixed 0
+  delete_obj [get_db place_blockages]
+}
+
+
